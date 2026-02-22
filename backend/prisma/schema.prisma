@@ -1,0 +1,148 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // url      = env("DATABASE_URL")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  price       Float
+  imageUrl    String?
+  category    String // "prato" ou "sobremesa"
+  isActive    Boolean  @default(true)
+  stock       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems OrderItem[]
+
+  // Relações inversas para o DailyMenu
+  menusAsDish1    DailyMenu[] @relation("Dish1ToProduct")
+  menusAsDish2    DailyMenu[] @relation("Dish2ToProduct")
+  menusAsDessert1 DailyMenu[] @relation("Dessert1ToProduct")
+  menusAsDessert2 DailyMenu[] @relation("Dessert2ToProduct")
+
+  @@map("products")
+}
+
+model DailyMenu {
+  id         String   @id @default(uuid())
+  date       DateTime @unique
+  
+  dish1Id    String
+  dish1      Product  @relation("Dish1ToProduct", fields: [dish1Id], references: [id])
+  
+  dish2Id    String
+  dish2      Product  @relation("Dish2ToProduct", fields: [dish2Id], references: [id])
+  
+  dessert1Id String
+  dessert1   Product  @relation("Dessert1ToProduct", fields: [dessert1Id], references: [id])
+  
+  dessert2Id String
+  dessert2   Product  @relation("Dessert2ToProduct", fields: [dessert2Id], references: [id])
+
+  isActive   Boolean  @default(true)
+  maxOrders  Int      @default(30)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("daily_menus")
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  email     String?
+  phone     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+
+  @@map("customers")
+}
+
+model Order {
+  id          String   @id @default(uuid())
+  orderNumber Int      @unique @default(autoincrement())
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+
+  deliveryType    String // "entrega" ou "retirada"
+  deliveryAddress String?
+  deliveryFee     Float   @default(0)
+
+  subtotal Float
+  total    Float
+
+  paymentMethod String @default("pix")
+  paymentStatus String @default("pendente") // "pendente", "confirmado", "cancelado"
+
+  status String @default("novo") // "novo", "preparando", "pronto", "entregue", "cancelado"
+
+  observations String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float
+  type      String // "prato" ou "sobremesa"
+
+  createdAt DateTime @default(now())
+
+  @@map("order_items")
+}
+
+model Settings {
+  id                String  @id @default(uuid())
+  deliveryFee       Float   @default(2.0)
+  pixKey            String
+  pixName           String
+  pixCity           String  @default("Rio de Janeiro")
+  orderDeadline     String  @default("10:00") // Horário limite para pedidos
+  deliveryStartTime String  @default("11:30")
+  deliveryEndTime   String  @default("13:30")
+  maxDailyOrders    Int     @default(30)
+  isAcceptingOrders Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      UserRole @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}

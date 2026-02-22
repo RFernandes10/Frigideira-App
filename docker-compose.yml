@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: frigideira-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: frigideira
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - frigideira-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: frigideira-backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/frigideira?schema=public"
+      PORT: 3333
+      NODE_ENV: production
+      JWT_SECRET: "change_this_in_production_please"
+      PIX_KEY: "seu_email@example.com"
+      PIX_NAME: "Frigideira - Seu Nome"
+    ports:
+      - "3333:3333"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - /app/dist
+    networks:
+      - frigideira-network
+    command: sh -c "npx prisma migrate deploy && npm start"
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frigideira-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - frigideira-network
+
+volumes:
+  postgres_data:
+
+networks:
+  frigideira-network:
+    driver: bridge
